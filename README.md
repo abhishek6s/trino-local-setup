@@ -1,23 +1,67 @@
-# Trino local setup
+# Trino local setup for UDF testing
 
 
-## setup
+## Steps to Run Trino local with UDFs jar
 
-> Currently this repo support trino-version 380. If we want to change the trino-version then 
+1. comment all UDF except testing one from `UDFunctionsPlugin`
+2. build the UDF jar
 
-- create a branch with trino-version name
-- update the plugin/mysql jars
+    ```shell
+    bazel build //presto-udfs:build-presto-udfs_with_mvn_cache_filler
+    ```
+
+3. copy the jar in `plugin/udfs`
+4. run docker containers
+
+    ```shell
+    docker-compose up -d
+    ```
+
+   if want to pass configs
+
+    ```shell
+    docker-compose -e MYSQL_ROOT_PASSWORD=myrootpass -e MYSQL_DATABASE=mycustomdb up -d
+    ```
+
+5. stop the container after testing
+
+    ```shell
+    docker-compose down
+    ```
+
+## steps to run queries
+
+1. install Trino cli
+
+    ```shell
+    brew install trino    
+    ```
+
+2. connect to Trino
+
+    ```shell
+    trino --server http://localhost:8080 --catalog mysql --schema mydb
+    ```
+
+3. queries to test UDF, for example
+
+    ```shell
+    select parse_user_agent('Mozilla/5.0 (Linux\; Android 6.0\; Nexus 6 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.76 Mobile Safari/537.36');
+    ```
+
+## setup for different trino-version
+
+> Currently this repo jars support Trino-version 380.
+
+If we want to change the Trino-version then:
+
+- create a branch with `trino-version` name
+- update the `plugin/mysql` jars
+  - to get the right set of jars either download from Trino machine or build from code
+  - or use https://jar-download.com/artifacts/io.Trino/
+  - make sure jars and image tag are in sync
 - test it by docker-compose up
 
-## Run
+## setup with hive
 
-
-1. comment all udfs
-2. docker-compose up -d
-3. brew install trino
-4. trino --server http://localhost:8080 --catalog mysql --schema mydb
-5. queries to test udf
-
-```
-select parse_user_agent('Mozilla/5.0 (Linux\; Android 6.0\; Nexus 6 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.76 Mobile Safari/537.36');
-```
+> one can try setup add hive catalog if host machine have good resources
