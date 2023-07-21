@@ -1,0 +1,55 @@
+version: '3.9'
+services:
+  trino-coordinator:
+    image: trinodb/trino:${TRINO_VERSION:-380}
+    container_name: trino-coordinator
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./etc:/etc/trino
+      - ./plugins:/usr/lib/trino/plugin
+    environment:
+      - TRINO_NODE_ENVIRONMENT=development
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info/state"]
+      interval: 10s # Health check interval
+      timeout: 10s # Health check timeout
+      retries: 5 
+    labels:
+      - "maintainer=Abhishek Gupta <abhishek.gupta@6sense.com>" 
+      - "description=Trino Coordinator"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  trino-worker:
+    image: trinodb/trino:${TRINO_VERSION:-380} # Parameterize Trino version
+    container_name: trino-worker
+    volumes:
+      - ./etc:/etc/trino
+      - ./plugins:/usr/lib/trino/plugin
+    environment:
+      - TRINO_NODE_ENVIRONMENT=development
+      - TRINO_DISCOVERY_URI=http://trino-coordinator:8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info/state"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      trino-coordinator:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:latest
+    container_name: mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root_password}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-mydb}
+      - MYSQL_USER=${MYSQL_USER:-myuser}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-mypassword}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${MYSQL_USER:-myuser}", "-p${MYSQL_PASSWORD:-mypassword}"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
